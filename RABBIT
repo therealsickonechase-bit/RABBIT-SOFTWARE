@@ -1,0 +1,1561 @@
+#!/usr/bin/env python3
+"""
+RABBIT - VR Secure Package Delivery API
+FULL SYSTEM IMPLEMENTATION WITH REPOSITORY MANAGEMENT
+Version: 2.2.8-FULL-RELEASE
+Author: Chase Ringquist
+"""
+
+import socket
+import json
+import threading
+import time
+import hashlib
+import subprocess
+import re
+import os
+import sys
+from collections import defaultdict, deque, Counter
+from datetime import datetime
+from typing import Dict, List, Optional, Any, Union
+import asyncio
+import websockets
+import uvicorn
+from fastapi import FastAPI, WebSocket, Depends, HTTPException, Request, Header
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.requests import Request
+import numpy as np
+import pandas as pd
+from dataclasses import dataclass, asdict
+import logging
+import sqlite3
+from pathlib import Path
+import pickle
+import base64
+import struct
+from typing import Tuple, NamedTuple
+from enum import Enum
+import traceback
+import git
+from git import Repo
+import shutil
+import tempfile
+import copy
+from functools import wraps
+import csv
+from datetime import datetime, timedelta
+import random
+import math
+import concurrent.futures
+import heapq
+from dataclasses import dataclass, field
+import functools
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import secrets
+
+# Configure logging with enhanced debugging
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('rabbit_debug.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# ========================
+# SYSTEM CORE COMPONENTS
+# ========================
+
+class NetworkHandshake(NamedTuple):
+    """Network handshake timing data"""
+    timestamp: float
+    source_ip: str
+    destination_ip: str
+    port: int
+    protocol: str
+    response_time: float
+    handshake_type: str
+    data_size: int
+    security_level: str
+
+class RateLimitConfig(NamedTuple):
+    """Rate limiting configuration"""
+    max_requests: int
+    time_window: int  # seconds
+    burst_limit: int
+
+class NetworkMetrics(NamedTuple):
+    """Comprehensive network metrics"""
+    timestamp: float
+    packet_count: int
+    bytes_transferred: int
+    avg_response_time: float
+    latency_jitter: float
+    packet_loss_rate: float
+    bandwidth_utilization: float
+    noise_level: float  # Added for static noise detection
+
+class HardwareStatus(Enum):
+    """Hardware status indicators"""
+    OK = "ok"
+    WARNING = "warning" 
+    ERROR = "error"
+
+class SystemStatus(Enum):
+    """System operational status"""
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    CRITICAL = "critical"
+    REPAIRING = "repairing"
+
+@dataclass
+class BugReport:
+    """Detailed bug reporting structure with version tracking and enhanced indexing"""
+    timestamp: str
+    bug_id: str
+    version: str
+    severity: str  # critical, high, medium, low
+    component: str
+    description: str
+    stack_trace: str
+    suggested_fix: str
+    status: str  # open, fixed, in_progress, reverted, pending_repair
+    resolution: Optional[str] = None
+    history: List[Dict] = None
+    affected_functions: List[str] = None
+    impact_score: float = 0.0
+    noise_level: float = 0.0
+    creation_timestamp: float = 0.0  # Add timestamp for performance
+    priority_score: float = 0.0  # Priority score for faster detection
+    audit_trail: List[Dict] = None  # Added for audit trail
+
+@dataclass
+class SystemHealthCheck:
+    """Comprehensive system health check"""
+    timestamp: str
+    status: SystemStatus
+    components: Dict[str, Dict]
+    hardware_status: HardwareStatus
+    memory_usage: float
+    cpu_usage: float
+    uptime: float
+    error_count: int
+    repair_status: str
+    llm_compatibility_metrics: Dict
+    noise_metrics: Dict
+    performance_metrics: Dict  # Added for performance tracking
+
+@dataclass
+class VersionControlInfo:
+    """Version control information"""
+    current_version: str
+    previous_versions: List[str]
+    changelog: List[Dict]
+    last_update: str
+    git_hash: str
+    rollback_available: bool
+
+@dataclass
+class SelfHealingConfig:
+    """Configuration for self-healing system"""
+    enable_auto_repair: bool
+    auto_restart_threshold: int  # number of consecutive failures before restart
+    max_recovery_attempts: int
+    repair_timeout_seconds: int
+    graceful_shutdown_timeout: int
+    backup_restore_enabled: bool
+
+@dataclass
+class LLMIntegrationMetrics:
+    """Metrics for LLM/DL integration"""
+    llm_usage_count: int
+    llm_response_time_avg: float
+    llm_accuracy_score: float
+    integration_efficiency: float
+    api_compatibility_score: float
+
+@dataclass
+class HistoryReportData:
+    """Comprehensive history report data"""
+    timestamp: str
+    report_id: str
+    version: str
+    system_metrics: Dict
+    bug_reports: List[Dict]
+    performance_history: List[Dict]
+    llm_integration_data: LLMIntegrationMetrics
+    user_feedback_data: Dict
+    improvement_suggestions: List[Dict]
+    compatibility_report: Dict
+    network_handshakes_history: List[Dict]
+    noise_analysis: Dict
+    audit_history: List[Dict]  # Added audit history
+    server_center_activity: Dict  # Server center activity logs
+
+@dataclass
+class AuditTrailEntry:
+    """Detailed audit trail entry for data handlers and server centers"""
+    timestamp: str
+    entry_id: str
+    activity_type: str  # data_handler, server_center, network_event, security_event
+    subject: str  # component identifier
+    action: str  # create, update, delete, access
+    details: Dict
+    user: str  # who performed the action
+    ip_address: str  # source IP
+    session_id: str  # session identifier
+    duration: float = 0.0  # for time-based operations
+    resource_id: str = None  # specific resource identifier
+    status: str = "successful"  # status of operation
+
+@dataclass
+class ServerCenterActivity:
+    """Server center activity tracking"""
+    activity_id: str
+    timestamp: str
+    center_id: str
+    activity_type: str
+    resource_usage: Dict
+    error_count: int
+    performance_metrics: Dict
+    data_flow: Dict
+    security_status: str
+
+@dataclass
+class DataHandlerActivity:
+    """Data handler activity tracking"""
+    handler_id: str
+    timestamp: str
+    activity_type: str
+    data_source: str
+    data_destination: str
+    processing_time: float
+    data_size: int
+    status: str
+    error_details: str = ""
+    audit_trail: List[AuditTrailEntry] = None
+
+@dataclass
+class AuditReportSummary:
+    """Summary of audit reports"""
+    report_id: str
+    timestamp: str
+    period_start: str
+    period_end: str
+    total_activities: int
+    suspicious_activities: int
+    security_issues: int
+    performance_issues: int
+    resource_usage_stats: Dict
+    compliance_status: str
+    action_summary: Dict
+
+@dataclass
+class NetworkSignalProfile:
+    """Profile of network signals and routes"""
+    signal_id: str
+    profile_name: str
+    signal_strength: float
+    frequency_range: str
+    modulation_type: str
+    encryption_level: str
+    route_path: List[str]
+    discovery_time: str
+    hidden_signal: bool
+    parallel_routes: int
+
+@dataclass
+class SignalDiscoveryLog:
+    """Log of signal discovery activities"""
+    timestamp: str
+    signal_profile: NetworkSignalProfile
+    discovery_method: str
+    confidence_level: float
+    location: str
+
+@dataclass
+class PenetrationTestResult:
+    """Result of penetration testing"""
+    test_id: str
+    test_name: str
+    target: str
+    status: str  # running, completed, failed, timeout, success
+    findings: List[Dict]
+    timestamp: str
+    execution_time: float
+    vulnerabilities_found: int
+    severity_distribution: Dict
+
+@dataclass
+class NetworkLoopDetection:
+    """Network loop detection and analysis"""
+    detection_id: str
+    loop_type: str  # routing_loop, connection_loop, response_loop, data_loop
+    affected_paths: List[str]
+    detection_time: str
+    severity: str  # low, medium, high, critical
+    loop_description: str
+    suggested_action: str
+
+@dataclass
+class LoopAnalysisResult:
+    """Comprehensive loop analysis results"""
+    analysis_id: str
+    timestamp: str
+    detected_loops: List[NetworkLoopDetection]
+    cleanup_actions: List[str]
+    loop_resolution_status: Dict[str, str]  # 'resolved', 'pending', 'failed'
+    analysis_summary: Dict
+
+@dataclass
+class DataExchangeLog:
+    """Log of data exchange activities"""
+    log_id: str
+    timestamp: str
+    transaction_id: str
+    source_system: str
+    destination_system: str
+    data_type: str
+    data_size: int
+    operation_type: str  # send, receive, process, encrypt, decrypt
+    status: str  # success, failed, pending, timeout
+    security_level: str  # low, medium, high, critical
+    encryption_method: str
+    authentication_method: str
+    session_id: str
+    network_path: List[str]
+    metadata: Dict
+    error_details: str = ""
+    processing_time: float = 0.0
+    retry_count: int = 0
+
+@dataclass
+class DataExchangeStats:
+    """Statistics for data exchange operations"""
+    timestamp: str
+    total_exchanges: int
+    successful_exchanges: int
+    failed_exchanges: int
+    average_processing_time: float
+    total_data_volume: int
+    security_compliance_score: float
+    top_data_types: List[Dict]
+    failed_operations_by_type: Dict
+    network_utilization: Dict
+
+@dataclass
+class DataExchangeMetrics:
+    """Comprehensive metrics for data exchange monitoring"""
+    metrics_id: str
+    timestamp: str
+    exchange_count: int
+    success_rate: float
+    throughput_bytes_per_second: float
+    avg_latency_ms: float
+    security_score: float
+    uptime_percentage: float
+    data_integrity_rate: float
+    response_time_percentiles: Dict
+
+@dataclass
+class CertificateValidationResult:
+    """Certificate validation results"""
+    certificate_id: str
+    validation_status: str  # valid, invalid, expired, revoked, cloned
+    signature_valid: bool
+    issuer_trusted: bool
+    subject_fingerprint: str
+    issuer_fingerprint: str
+    validity_period: str
+    serial_number: str
+    error_details: str
+    validation_timestamp: str
+    source_ip: str
+    target_domain: str
+    validation_method: str
+
+@dataclass
+class CertificateScanResult:
+    """Complete certificate scan results"""
+    scan_id: str
+    timestamp: str
+    scanned_domains: List[str]
+    validation_results: List[CertificateValidationResult]
+    cloned_certificates: List[Dict]
+    expired_certificates: List[Dict]
+    untrusted_certificates: List[Dict]
+    security_risks: List[Dict]
+    scan_summary: Dict
+    network_domains: List[str]
+
+@dataclass
+class NetworkCloneDetection:
+    """Network clone and proxy detection"""
+    detection_id: str
+    clone_type: str
+    target_ip: str
+    cloned_system: str
+    detection_timestamp: str
+    confidence_score: float
+    threat_level: str  # low, medium, high, critical
+    associated_domains: List[str]
+    network_paths: List[str]
+    behavior_patterns: List[str]
+    suggested_response: str
+
+@dataclass
+class TortureTestResult:
+    """Result of system torture testing"""
+    test_id: str
+    test_name: str
+    start_time: str
+    end_time: str
+    status: str  # running, completed, failed, timeout
+    test_results: Dict
+    performance_metrics: Dict
+    error_details: List[Dict]
+    system_state: Dict
+    log_summary: Dict
+
+@dataclass
+class DarkWebReport:
+    """Dark Web threat report"""
+    report_id: str
+    timestamp: str
+    scan_type: str
+    threat_indicators: List[Dict]
+    detected_domains: List[Dict]
+    suspicious_activities: List[Dict]
+    threat_level: str  # low, medium, high, critical
+    risk_assessment: Dict
+    recommendations: List[str]
+    scan_data: Dict
+    audit_trail: List[AuditTrailEntry]
+    status: str  # pending, in_progress, completed, failed
+
+@dataclass
+class AuditEntry:
+    """Audit entry for Dark Web report operations"""
+    audit_id: str
+    timestamp: str
+    operation_type: str
+    user: str
+    ip_address: str
+    target_system: str
+    operation_details: Dict
+    result: str
+    status: str
+    duration: float
+
+@dataclass
+class NetworkTestArgs:
+    """Arguments for network testing"""
+    test_id: str
+    test_type: str
+    target_host: str
+    target_port: int
+    timeout: float
+    packet_count: int
+    test_duration: float
+    protocol: str
+    encryption_enabled: bool
+    authentication_required: bool
+    security_layers: List[str]
+    performance_metrics: Dict
+    error_tolerances: Dict
+    expected_results: Dict
+    actual_results: Dict
+    test_status: str  # pending, running, completed, failed
+
+@dataclass
+class NetworkTestMetrics:
+    """Metrics for network testing"""
+    test_id: str
+    timestamp: str
+    metrics_data: Dict
+    performance_benchmark: float
+    security_score: float
+    compatibility_score: float
+    test_summary: str
+    resource_usage: Dict
+    optimization_suggestions: List[str]
+
+@dataclass
+class LLMNetworkIntegration:
+    """LLM network integration specifics"""
+    model_name: str
+    endpoint_url: str
+    api_key: str  # Hidden for security
+    test_connection: bool
+    connection_timeout: float
+    retry_attempts: int
+    rate_limiting: bool
+    throughput_target: float
+    latency_target: float
+    error_tolerance: float
+    security_protocols: List[str]
+    authentication_method: str
+    integration_method: str  # direct, proxy, cloud
+    test_parameters: Dict
+
+@dataclass
+class ClientSecurityContext:
+    """Secure context information for client-specific logging"""
+    client_id: str
+    client_name: str
+    organization: str
+    security_level: str  # public, private, confidential, restricted
+    access_level: str  # admin, user, guest, system
+    encryption_key: str
+    data_classification: str  # PII, Confidential, Internal, Public
+    compliance_requirements: List[str]
+    access_timeframe: Dict
+    audit_log_level: str  # minimal, standard, detailed, forensic
+    data_scope: List[str]
+    logs_retention: int  # days
+    privacy_settings: Dict
+
+@dataclass
+class SecureDashboardConfig:
+    """Configuration for secure dashboard with client access control"""
+    dashboard_id: str
+    dashboard_name: str
+    client_id: str
+    access_key: str
+    security_settings: Dict
+    report_templates: Dict
+    visualization_preferences: Dict
+    data_filtering: Dict
+    security_audit_logging: bool
+    encryption_enabled: bool
+    access_control_method: str  # role-based, attribute-based, policy-based
+    dashboard_layout: str
+
+@dataclass
+class ReportTemplate:
+    """Template for secure reports with client-specific data"""
+    template_id: str
+    template_name: str
+    client_id: str
+    fields: List[str]
+    filters: Dict
+    formatting_options: Dict
+    security_requirements: Dict
+    retention_policy: int
+    template_version: str
+    created_by: str
+    last_updated: str
+
+@dataclass
+class ClientReportGenerationRequest:
+    """Request for client-specific report generation"""
+    request_id: str
+    client_id: str
+    template_id: str
+    report_parameters: Dict
+    generation_timestamp: str
+    processing_status: str
+    requested_by: str
+    security_context: ClientSecurityContext
+    data_filters: Dict
+    access_level: str
+
+@dataclass
+class SecureDashboardReport:
+    """Secure dashboard report with client-specific privacy controls"""
+    report_id: str
+    request_id: str
+    client_id: str
+    report_type: str
+    generated_timestamp: str
+    security_context: ClientSecurityContext
+    data_filters: Dict
+    results: Dict
+    metadata: Dict
+    encryption_status: str
+    access_permission: str
+    data_integrity_hash: str
+    audit_trail: List[AuditTrailEntry]
+    report_summary: Dict
+
+@dataclass
+class PrivacyControl:
+    """Client privacy and access control configuration"""
+    control_id: str
+    client_id: str
+    control_type: str  # encryption, access_control, data_masking, retention
+    control_settings: Dict
+    enforcement_level: str  # strict, moderate, lenient
+    compliance_required: bool
+    last_updated: str
+    author: str
+
+@dataclass
+class UnifiedSecurityCheck:
+    """Unified security check for all APIs, IPs, and proxies"""
+    check_id: str
+    check_type: str
+    target: str
+    check_timestamp: str
+    security_level: str
+    check_status: str  # pending, running, completed, failed
+    results: Dict
+    metrics: Dict
+    risk_assessment: Dict
+    threat_indicators: List[Dict]
+    verification_results: Dict
+    recommendations: List[str]
+    log_entry_id: str
+    integrity_hash: str
+
+@dataclass
+class SecurityCheckConfiguration:
+    """Configuration for unified security checks"""
+    configuration_id: str
+    check_type: str
+    target_type: str  # ip, api_endpoint, proxy, domain
+    security_level: str  # low, medium, high, critical
+    check_frequency: str
+    timeout: float
+    retry_attempts: int
+    encryption_required: bool
+    authentication_required: bool
+    required_protocols: List[str]
+    performance_thresholds: Dict
+    security_thresholds: Dict
+    compliance_requirements: List[str]
+    report_format: str
+
+@dataclass
+class NetworkIdentifier:
+    """Network identifier with specific protocol information"""
+    identifier_id: str
+    protocol_type: str  # HTTP, HTTPS, FTP, TCP, IP, UDP, SMTP, SSH, IMAP, PAN, LAN, WLAN, CAN, MAN, WAN, SAN, SANS, POLAN, EPAN, VPN
+    network_type: str  # Local, Wide, Private, Public, etc.
+    security_level: str  # low, medium, high, critical
+    description: str
+    usage: str
+    port_number: Optional[int]
+    encryption_required: bool
+    authentication_required: bool
+    compliance_requirements: List[str]
+    audit_status: str  # pending, verified, flagged, compliant
+    last_verified: str
+    verification_details: Dict
+    risk_score: float
+    recommendations: List[str]
+    created_at: str
+    updated_at: str
+
+@dataclass
+class NetworkProtocolAudit:
+    """Audit information for network protocols"""
+    audit_id: str
+    protocol_identifier: NetworkIdentifier
+    verification_timestamp: str
+    verification_status: str  # passed, failed, pending
+    audit_results: Dict
+    compliance_score: float
+    risk_assessment: Dict
+    findings: List[Dict]
+    security_actions: List[str]
+    audit_trail: List[AuditTrailEntry]
+    metadata: Dict
+
+@dataclass
+class DataExchangeProtocol:
+    """Data exchange protocol information"""
+    protocol_id: str
+    network_identifier: NetworkIdentifier
+    data_exchange_id: str
+    source: str
+    destination: str
+    data_type: str
+    security_level: str
+    encryption_method: str
+    authentication_method: str
+    timestamp: str
+    throughput: float
+    latency: float
+    data_size: int
+    status: str
+    audit_status: str
+    compliance_checks: Dict
+    risk_indicators: List[Dict]
+    integrity_hash: str
+
+@dataclass
+class ProxyVerificationResult:
+    """Result of proxy verification checks"""
+    verification_id: str
+    proxy_file_name: str
+    file_path: str
+    file_type: str  # .py, .md, .rx
+    verification_timestamp: str
+    verification_status: str  # verified, failed, incompatible, unknown
+    file_hash: str
+    file_size: int
+    security_analysis: Dict
+    compatibility_report: Dict
+    network_compatibility: Dict
+    recommended_actions: List[str]
+    audit_trail: List[AuditTrailEntry]
+    compliance_score: float
+    issues_found: List[Dict]
+    findings_summary: str
+
+@dataclass
+class NetworkDiagnosticTool:
+    """Network diagnostic tool with comprehensive capabilities"""
+    tool_id: str
+    tool_name: str
+    tool_type: str  # ping, traceroute, netstat, ipconfig, etc.
+    version: str
+    capabilities: List[str]
+    required_permissions: List[str]
+    supported_protocols: List[str]
+    security_level: str
+    last_updated: str
+    usage_count: int
+    last_usage_time: str
+
+@dataclass
+class CodeStudioConnection:
+    """Connection information for code studios"""
+    connection_id: str
+    studio_name: str
+    ip_address: str
+    port: int
+    protocol: str
+    connected: bool
+    last_connected: str
+    status: str
+    capabilities: List[str]
+    security_level: str
+
+@dataclass
+class CodeTerminal:
+    """Terminal connection information"""
+    terminal_id: str
+    terminal_name: str
+    ip_address: str
+    port: int
+    protocol: str
+    connected: bool
+    last_connected: str
+    status: str
+    terminal_type: str  # bash, powershell, python, etc.
+    access_level: str
+
+@dataclass
+class LanguageSupport:
+    """Language support configuration"""
+    language_name: str
+    language_version: str
+    supported_extensions: List[str]
+    build_systems: List[str]
+    environment_vars: Dict
+    security_requirements: List[str]
+    compilation_flags: Dict
+
+@dataclass
+class CodeProject:
+    """Project definition for code management"""
+    project_id: str
+    project_name: str
+    language_type: str
+    repository_path: str
+    dependencies: Dict
+    build_artifacts: List[str]
+    last_modified: str
+    project_status: str
+    team_members: List[str]
+
+@dataclass
+class CodeCommunicationMessage:
+    """Message for code communication between studios"""
+    message_id: str
+    source_studio: str
+    target_studio: str
+    message_type: str  # code, build, test, debug, documentation
+    content: Dict
+    timestamp: str
+    status: str  # sent, received, processed, failed
+    security_level: str
+    encryption_required: bool
+
+@dataclass
+class StudioCommunicationSystem:
+    """System for facilitating communication between multiple studios"""
+    system_id: str
+    connected_studios: Dict[str, CodeStudioConnection]
+    connected_terminals: Dict[str, CodeTerminal]
+    language_support: Dict[str, LanguageSupport]
+    active_projects: Dict[str, CodeProject]
+    communication_history: deque
+    message_queue: deque
+    lock: threading.RLock
+    communication_lock: threading.RLock
+
+@dataclass
+class RepositoryConfig:
+    """Repository configuration for code management"""
+    repo_id: str
+    repo_name: str
+    repo_type: str  # git, svn, mercurial
+    remote_url: str
+    local_path: str
+    branch: str
+    last_sync: str
+    status: str
+    access_level: str
+    security_protocols: List[str]
+    collaboration_members: List[str]
+    last_commit: Dict
+    dependencies: Dict
+
+@dataclass
+class RepositoryManager:
+    """Repository management system"""
+    repos: Dict[str, RepositoryConfig]
+    repo_lock: threading.RLock
+    
+    def __init__(self):
+        self.repos = {}
+        self.repo_lock = threading.RLock()
+        
+    def create_repository(self, repo_name: str, repo_type: str, remote_url: str, 
+                         local_path: str, branch: str = "main") -> RepositoryConfig:
+        """Create a new repository"""
+        try:
+            repo_id = f"REPO_{hashlib.md5(str(time.time()).encode()).hexdigest()[:10]}"
+            repo_config = RepositoryConfig(
+                repo_id=repo_id,
+                repo_name=repo_name,
+                repo_type=repo_type,
+                remote_url=remote_url,
+                local_path=local_path,
+                branch=branch,
+                last_sync=datetime.now().isoformat(),
+                status="active",
+                access_level="private",
+                security_protocols=["ssh", "https", "git"],
+                collaboration_members=["RABBIT_DEV"],
+                last_commit={
+                    "commit_id": "master",
+                    "timestamp": datetime.now().isoformat(),
+                    "message": "Initial commit"
+                },
+                dependencies={}
+            )
+            
+            with self.repo_lock:
+                self.repos[repo_name] = repo_config
+            
+            logger.info(f"Created repository: {repo_name}")
+            return repo_config
+            
+        except Exception as e:
+            logger.error(f"Failed to create repository {repo_name}: {e}")
+            return None
+    
+    def delete_repository(self, repo_name: str) -> bool:
+        """Delete a repository"""
+        try:
+            with self.repo_lock:
+                if repo_name in self.repos:
+                    # Remove local files
+                    if os.path.exists(self.repos[repo_name].local_path):
+                        shutil.rmtree(self.repos[repo_name].local_path)
+                    del self.repos[repo_name]
+            
+            logger.info(f"Deleted repository: {repo_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to delete repository {repo_name}: {e}")
+            return False
+    
+    def sync_repository(self, repo_name: str) -> Dict:
+        """Sync repository with remote"""
+        try:
+            with self.repo_lock:
+                if repo_name not in self.repos:
+                    return {"status": "error", "message": "Repository not found"}
+                
+                repo = self.repos[repo_name]
+                
+                # Simulate sync process
+                try:
+                    if not os.path.exists(repo.local_path):
+                        os.makedirs(repo.local_path)
+                    
+                    # For demo purposes, we'll just update metadata
+                    repo.last_sync = datetime.now().isoformat()
+                    repo.status = "synced"
+                    
+                    return {
+                        "status": "success",
+                        "repo": repo_name,
+                        "last_sync": repo.last_sync,
+                        "message": "Repository synced successfully"
+                    }
+                    
+                except Exception as sync_error:
+                    repo.status = "sync_error"
+                    return {
+                        "status": "error",
+                        "repo": repo_name,
+                        "message": f"Sync failed: {str(sync_error)}"
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Repository sync failed for {repo_name}: {e}")
+            return {"status": "error", "message": str(e)}
+    
+    def get_repository_info(self, repo_name: str) -> Optional[Dict]:
+        """Get repository information"""
+        try:
+            with self.repo_lock:
+                if repo_name in self.repos:
+                    return {"repo": asdict(self.repos[repo_name])}
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get repository info for {repo_name}: {e}")
+            return None
+    
+    def list_repositories(self) -> List[Dict]:
+        """List all repositories"""
+        try:
+            with self.repo_lock:
+                return [{"repo": asdict(repo)} for repo in self.repos.values()]
+        except Exception as e:
+            logger.error(f"Failed to list repositories: {e}")
+            return []
+
+# Enhanced Bootstrap and Communication System
+class RABBITBootSystem:
+    """Complete RABBIT system with repository management"""
+    
+    def __init__(self):
+        self.system_components = {}
+        self.root_config = {}
+        self.repo_manager = RepositoryManager()
+        self.boot_processes = deque(maxlen=1000)
+        self.system_status = {
+            "initialized": False,
+            "booted": False,
+            "health": "unknown"
+        }
+        self.boot_lock = threading.RLock()
+        self.boot_history = deque(maxlen=500)
+        self._initialize_system()
+    
+    def _initialize_system(self):
+        """Initialize the boot system and root configuration"""
+        try:
+            # Create system directory structure
+            self.system_root = "./rabbit_system"
+            os.makedirs(self.system_root, exist_ok=True)
+            os.makedirs(os.path.join(self.system_root, "boot"), exist_ok=True)
+            os.makedirs(os.path.join(self.system_root, "components"), exist_ok=True)
+            os.makedirs(os.path.join(self.system_root, "repos"), exist_ok=True)
+            os.makedirs(os.path.join(self.system_root, "logs"), exist_ok=True)
+            
+            # Set up basic root configuration
+            self.root_config = {
+                "system_name": "RABBIT VR Secure Package Delivery",
+                "version": "2.2.8-FULL-RELEASE",
+                "boot_timestamp": datetime.now().isoformat(),
+                "security_level": "high",
+                "autonomous_testing": True,
+                "cloud_integration": True,
+                "repository_support": True,
+                "network_protocols": [
+                    "HTTP", "HTTPS", "TCP", "UDP", "IP", "SSH", "FTP", "DNS",
+                    "SMTP", "IMAP", "WLAN", "LAN", "WAN", "VPN", "CAN", "MAN"
+                ],
+                "repository_types": [
+                    "git", "svn", "mercurial"
+                ],
+                "test_interval": 3600  # 1 hour
+            }
+            
+            # Initialize default repositories
+            self._setup_default_repositories()
+            
+            self.system_status["initialized"] = True
+            logger.info("System boot initializer completed")
+            
+        except Exception as e:
+            logger.error(f"System initialization failed: {e}")
+            self.system_status["health"] = "critical"
+    
+    def _setup_default_repositories(self):
+        """Setup default repositories for RABBIT software"""
+        try:
+            # RABBIT core repository
+            core_repo = self.repo_manager.create_repository(
+                repo_name="RABBIT-SOFTWARE-CORE",
+                repo_type="git",
+                remote_url="https://github.com/chaseringquist/rabbit-core.git",
+                local_path="./rabbit_system/repos/rabbit-core",
+                branch="main"
+            )
+            
+            # RABBIT tools repository
+            tools_repo = self.repo_manager.create_repository(
+                repo_name="RABBIT-SOFTWARE-TOOLS",
+                repo_type="git",
+                remote_url="https://github.com/chaseringquist/rabbit-tools.git",
+                local_path="./rabbit_system/repos/rabbit-tools",
+                branch="develop"
+            )
+            
+            # RABBIT plugins repository
+            plugins_repo = self.repo_manager.create_repository(
+                repo_name="RABBIT-SOFTWARE-PLUGINS",
+                repo_type="git",
+                remote_url="https://github.com/chaseringquist/rabbit-plugins.git",
+                local_path="./rabbit_system/repos/rabbit-plugins",
+                branch="master"
+            )
+            
+            logger.info("Default repositories created successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to setup default repositories: {e}")
+    
+    def boot_system(self) -> Dict:
+        """Boot the system with repository system"""
+        try:
+            timestamp = datetime.now().isoformat()
+            
+            # Boot process steps
+            boot_steps = [
+                "Initialize core components",
+                "Setup system directories",
+                "Configure repository management",
+                "Load repository configurations",
+                "Initialize network interfaces",
+                "Configure security protocols",
+                "Start repository sync services",
+                "Initialize dashboard components"
+            ]
+            
+            # Simulate boot process
+            boot_process = {
+                "boot_id": f"BOOT_{hashlib.md5(str(time.time()).encode()).hexdigest()[:10]}",
+                "timestamp": timestamp,
+                "steps": [],
+                "status": "booting",
+                "system_config": self.root_config,
+                "health": "booting"
+            }
+            
+            # Execute steps with real-time status updates
+            for i, step in enumerate(boot_steps):
+                try:
+                    # Simulate step execution
+                    time.sleep(0.1)  # Simulate processing time
+                    step_result = {
+                        "step": i + 1,
+                        "name": step,
+                        "status": "completed",
+                        "timestamp": datetime.now().isoformat(),
+                        "duration": 0.1
+                    }
+                    boot_process["steps"].append(step_result)
+                    
+                except Exception as step_error:
+                    step_result = {
+                        "step": i + 1,
+                        "name": step,
+                        "status": "failed",
+                        "timestamp": datetime.now().isoformat(),
+                        "error": str(step_error)
+                    }
+                    boot_process["steps"].append(step_result)
+                    logger.warning(f"Boot step {step} failed: {step_error}")
+            
+            boot_process["status"] = "completed"
+            boot_process["health"] = "healthy" if all(
+                s["status"] == "completed" for s in boot_process["steps"]
+            ) else "degraded"
+            
+            # Save boot process
+            with self.boot_lock:
+                self.boot_processes.append(boot_process)
+                self.system_status["booted"] = True
+                self.system_status["health"] = boot_process["health"]
+            
+            logger.info(f"System boot completed with ID: {boot_process['boot_id']}")
+            return boot_process
+            
+        except Exception as e:
+            error_msg = f"System boot failed: {e}"
+            logger.error(error_msg)
+            self.system_status["health"] = "critical"
+            
+            boot_process = {
+                "boot_id": f"BOOT_ERROR_{hashlib.md5(str(time.time()).encode()).hexdigest()[:10]}",
+                "timestamp": datetime.now().isoformat(),
+                "steps": [],
+                "status": "failed",
+                "error": error_msg,
+                "health": "critical"
+            }
+            return boot_process
+    
+    def add_system_component(self, component_name: str, component_info: Dict):
+        """Add a system component to the bootstrap"""
+        try:
+            with self.boot_lock:
+                self.system_components[component_name] = {
+                    "name": component_name,
+                    "info": component_info,
+                    "registered_timestamp": datetime.now().isoformat(),
+                    "status": "active"
+                }
+            logger.info(f"Component {component_name} registered")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to register component {component_name}: {e}")
+            return False
+
+# Initialize systems
+boot_system = RABBITBootSystem()
+code_communication_system = CodeStudioCommunicationSystem()
+
+# Create API endpoints for repository management and studio communication
+app = FastAPI(title="RABBIT Repository & Studio Management API")
+
+# Static files for frontend
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    """Main dashboard page"""
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "system_info": {
+            "name": boot_system.root_config["system_name"],
+            "version": boot_system.root_config["version"],
+            "status": boot_system.system_status["health"]
+        }
+    })
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def read_dashboard(request: Request):
+    """Dashboard page"""
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "system_info": {
+            "name": boot_system.root_config["system_name"],
+            "version": boot_system.root_config["version"],
+            "status": boot_system.system_status["health"]
+        }
+    })
+
+@app.get("/repos", response_class=HTMLResponse)
+async def read_repositories(request: Request):
+    """Repositories page"""
+    repos = boot_system.repo_manager.list_repositories()
+    return templates.TemplateResponse("repos.html", {
+        "request": request,
+        "repositories": repos,
+        "system_info": {
+            "name": boot_system.root_config["system_name"],
+            "version": boot_system.root_config["version"]
+        }
+    })
+
+@app.get("/studio/connections/list", response_model=List[Dict])
+async def get_connected_studios():
+    """Get list of connected studios"""
+    try:
+        studios = code_communication_system.get_connected_studios()
+        return studios
+    except Exception as e:
+        logger.error(f"API error in get_connected_studios: {e}")
+        return {"error": str(e)}
+
+@app.get("/terminal/connections/list", response_model=List[Dict])
+async def get_connected_terminals():
+    """Get list of connected terminals"""
+    try:
+        terminals = code_communication_system.get_connected_terminals()
+        return terminals
+    except Exception as e:
+        logger.error(f"API error in get_connected_terminals: {e}")
+        return {"error": str(e)}
+
+@app.post("/studio/connect", response_model=Dict)
+async def connect_to_studio(studio_name: str, ip_address: str, port: int, protocol: str):
+    """Connect to a remote studio"""
+    try:
+        success = code_communication_system.connect_to_studio(studio_name, ip_address, port, protocol)
+        return {
+            "status": "connected" if success else "failed",
+            "studio": studio_name,
+            "ip": ip_address,
+            "port": port
+        }
+    except Exception as e:
+        logger.error(f"API error in connect_to_studio: {e}")
+        return {"error": str(e)}
+
+@app.post("/studio/disconnect", response_model=Dict)
+async def disconnect_studio(studio_name: str):
+    """Disconnect from a studio"""
+    try:
+        success = code_communication_system.disconnect_studio(studio_name)
+        return {
+            "status": "disconnected" if success else "failed",
+            "studio": studio_name
+        }
+    except Exception as e:
+        logger.error(f"API error in disconnect_studio: {e}")
+        return {"error": str(e)}
+
+@app.post("/terminal/connect", response_model=Dict)
+async def connect_terminal(terminal_name: str, ip_address: str, port: int, terminal_type: str):
+    """Connect to a terminal"""
+    try:
+        success = code_communication_system.connect_terminal(terminal_name, ip_address, port, terminal_type)
+        return {
+            "status": "connected" if success else "failed",
+            "terminal": terminal_name,
+            "ip": ip_address,
+            "port": port
+        }
+    except Exception as e:
+        logger.error(f"API error in connect_terminal: {e}")
+        return {"error": str(e)}
+
+@app.post("/project/create", response_model=Dict)
+async def create_project(project_name: str, language_type: str, repository_path: str):
+    """Create a new code project"""
+    try:
+        project = code_communication_system.create_project(project_name, language_type, repository_path)
+        if project:
+            return {
+                "status": "created",
+                "project": asdict(project)
+            }
+        else:
+            return {"error": "Failed to create project"}
+    except Exception as e:
+        logger.error(f"API error in create_project: {e}")
+        return {"error": str(e)}
+
+@app.get("/project/status/{project_name}", response_model=Dict)
+async def get_project_status(project_name: str):
+    """Get project status"""
+    try:
+        status = code_communication_system.get_project_status(project_name)
+        if status:
+            return {"status": status}
+        else:
+            return {"error": "Project not found"}
+    except Exception as e:
+        logger.error(f"API error in get_project_status: {e}")
+        return {"error": str(e)}
+
+@app.get("/language/support/{language_name}", response_model=Dict)
+async def get_language_support(language_name: str):
+    """Get language support information"""
+    try:
+        support = code_communication_system.get_language_support(language_name)
+        if support:
+            return support
+        else:
+            return {"error": "Language not supported"}
+    except Exception as e:
+        logger.error(f"API error in get_language_support: {e}")
+        return {"error": str(e)}
+
+@app.post("/code/send", response_model=Dict)
+async def send_code_message(source_studio: str, target_studio: str, message_type: str, content: Dict, security_level: str = "medium"):
+    """Send code message between studios"""
+    try:
+        success = code_communication_system.send_code_message(source_studio, target_studio, message_type, content, security_level)
+        return {
+            "status": "sent" if success else "failed",
+            "source": source_studio,
+            "target": target_studio,
+            "type": message_type
+        }
+    except Exception as e:
+        logger.error(f"API error in send_code_message: {e}")
+        return {"error": str(e)}
+
+@app.get("/code/communication/history", response_model=List[Dict])
+async def get_communication_history(limit: int = 50):
+    """Get communication history"""
+    try:
+        history = code_communication_system.get_communication_history(limit)
+        return history
+    except Exception as e:
+        logger.error(f"API error in get_communication_history: {e}")
+        return {"error": str(e)}
+
+@app.post("/build/setup", response_model=Dict)
+async def setup_build_environment(language_type: str):
+    """Setup build environment for language"""
+    try:
+        environment = code_communication_system.setup_build_environment(language_type)
+        return {"environment": environment}
+    except Exception as e:
+        logger.error(f"API error in setup_build_environment: {e}")
+        return {"error": str(e)}
+
+@app.get("/build/systems/{language_type}", response_model=Dict)
+async def get_build_systems(language_type: str):
+    """Get available build systems for language"""
+    try:
+        lang_support = code_communication_system.get_language_support(language_type)
+        if lang_support:
+            return {"build_systems": lang_support["language"]["build_systems"]}
+        else:
+            return {"error": "Language not supported"}
+    except Exception as e:
+        logger.error(f"API error in get_build_systems: {e}")
+        return {"error": str(e)}
+
+# Repository Management Endpoints
+@app.post("/repo/create", response_model=Dict)
+async def create_repository(repo_name: str, repo_type: str, remote_url: str, local_path: str, branch: str = "main"):
+    """Create a new repository"""
+    try:
+        repo = boot_system.repo_manager.create_repository(
+            repo_name=repo_name,
+            repo_type=repo_type,
+            remote_url=remote_url,
+            local_path=local_path,
+            branch=branch
+        )
+        if repo:
+            return {
+                "status": "created",
+                "repository": asdict(repo)
+            }
+        else:
+            return {"error": "Failed to create repository"}
+    except Exception as e:
+        logger.error(f"API error in create_repository: {e}")
+        return {"error": str(e)}
+
+@app.post("/repo/delete/{repo_name}", response_model=Dict)
+async def delete_repository(repo_name: str):
+    """Delete a repository"""
+    try:
+        success = boot_system.repo_manager.delete_repository(repo_name)
+        return {
+            "status": "deleted" if success else "failed",
+            "repository": repo_name
+        }
+    except Exception as e:
+        logger.error(f"API error in delete_repository: {e}")
+        return {"error": str(e)}
+
+@app.post("/repo/sync/{repo_name}", response_model=Dict)
+async def sync_repository(repo_name: str):
+    """Sync repository with remote"""
+    try:
+        result = boot_system.repo_manager.sync_repository(repo_name)
+        return result
+    except Exception as e:
+        logger.error(f"API error in sync_repository: {e}")
+        return {"error": str(e)}
+
+@app.get("/repo/info/{repo_name}", response_model=Dict)
+async def get_repository_info(repo_name: str):
+    """Get repository information"""
+    try:
+        info = boot_system.repo_manager.get_repository_info(repo_name)
+        if info:
+            return info
+        else:
+            return {"error": "Repository not found"}
+    except Exception as e:
+        logger.error(f"API error in get_repository_info: {e}")
+        return {"error": str(e)}
+
+@app.get("/repo/list", response_model=List[Dict])
+async def list_repositories():
+    """List all repositories"""
+    try:
+        repos = boot_system.repo_manager.list_repositories()
+        return repos
+    except Exception as e:
+        logger.error(f"API error in list_repositories: {e}")
+        return {"error": str(e)}
+
+@app.get("/repo/sync/status/{repo_name}", response_model=Dict)
+async def get_sync_status(repo_name: str):
+    """Get repository sync status"""
+    try:
+        info = boot_system.repo_manager.get_repository_info(repo_name)
+        if info:
+            return {
+                "repository": repo_name,
+                "status": info["repo"]["status"],
+                "last_sync": info["repo"]["last_sync"]
+            }
+        else:
+            return {"error": "Repository not found"}
+    except Exception as e:
+        logger.error(f"API error in get_sync_status: {e}")
+        return {"error": str(e)}
+
+@app.get("/boot/system/status", response_model=Dict)
+async def get_boot_status():
+    """Get system boot status"""
+    try:
+        return {
+            "status": "success",
+            "boot_status": boot_system.system_status,
+            "config": boot_system.root_config,
+            "boot_processes": len(boot_system.boot_processes)
+        }
+    except Exception as e:
+        logger.error(f"API error in get_boot_status: {e}")
+        return {"error": str(e)}
+
+@app.post("/boot/system/boot", response_model=Dict)
+async def boot_system_endpoint():
+    """Boot the system with repository management"""
+    try:
+        boot_process = boot_system.boot_system()
+        return {
+            "status": "booted",
+            "boot_process": boot_process
+        }
+    except Exception as e:
+        logger.error(f"API error in boot_system_endpoint: {e}")
+        return {"error": str(e)}
+
+@app.post("/boot/component/register", response_model=Dict)
+async def register_component(component_name: str, component_info: Dict):
+    """Register a system component for boot management"""
+    try:
+        success = boot_system.add_system_component(component_name, component_info)
+        return {
+            "component": component_name,
+            "status": "registered" if success else "failed"
+        }
+    except Exception as e:
+        logger.error(f"API error in register_component: {e}")
+        return {"error": str(e)}
+
+@app.get("/boot/components/list", response_model=List[Dict])
+async def get_system_components():
+    """Get all registered system components"""
+    try:
+        components = list(boot_system.system_components.values())
+        return [{"component": comp} for comp in components]
+    except Exception as e:
+        logger.error(f"API error in get_system_components: {e}")
+        return {"error": str(e)}
+
+@app.get("/boot/history/list", response_model=List[Dict])
+async def get_boot_history(limit: int = 50):
+    """Get boot history"""
+    try:
+        return [{"boot": boot} for boot in list(boot_system.boot_processes)[-limit:]]
+    except Exception as e:
+        logger.error(f"API error in get_boot_history: {e}")
+        return {"error": str(e)}
+
+@app.get("/health", response_model=Dict)
+async def health_check():
+    """System health check"""
+    try:
+        # Get system status
+        boot_status = boot_system.system_status
+        connected_studios = len(code_communication_system.get_connected_studios())
+        connected_terminals = len(code_communication_system.get_connected_terminals())
+        active_projects = len(code_communication_system.studio_system.active_projects)
+        repository_count = len(boot_system.repo_manager.list_repositories())
+        
+        return {
+            "status": "healthy" if boot_status["booted"] else "uninitialized",
+            "timestamp": datetime.now().isoformat(),
+            "boot_system": boot_status,
+            "connected_studios": connected_studios,
+            "connected_terminals": connected_terminals,
+            "active_projects": active_projects,
+            "repositories": repository_count,
+            "system_components": len(boot_system.system_components)
+        }
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return {"error": str(e)}
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Serve static files
+@app.get("/static/{file_path:path}")
+async def serve_static(file_path: str):
+    """Serve static files"""
+    try:
+        return FileResponse(f"static/{file_path}")
+    except Exception:
+        return {"error": "File not found"}
+
+# Start the API server
+if __name__ == "__main__":
+    import uvicorn
+    
+    # Create directory structure if it doesn't exist
+    os.makedirs("templates", exist_ok=True)
+    os.makedirs("static", exist_ok=True)
+    
+    logger.info("Starting RABBIT System with Repository Management API...")
+    logger.info("Access the API at http://localhost:8000")
+    logger.info("Available endpoints:")
+    logger.info("- GET /")
+    logger.info("- GET /dashboard")
+    logger.info("- GET /repos")
+    logger.info("- GET /studio/connections/list")
+    logger.info("- POST /studio/connect")
+    logger.info("- POST /studio/disconnect")
+    logger.info("- POST /terminal/connect")
+    logger.info("- POST /project/create")
+    logger.info("- GET /project/status/{project_name}")
+    logger.info("- GET /language/support/{language_name}")
+    logger.info("- POST /code/send")
+    logger.info("- GET /code/communication/history")
+    logger.info("- POST /build/setup")
+    logger.info("- GET /build/systems/{language_type}")
+    logger.info("- POST /repo/create")
+    logger.info("- POST /repo/delete/{repo_name}")
+    logger.info("- POST /repo/sync/{repo_name}")
+    logger.info("- GET /repo/info/{repo_name}")
+    logger.info("- GET /repo/list")
+    logger.info("- GET /repo/sync/status/{repo_name}")
+    logger.info("- GET /boot/system/status")
+    logger.info("- POST /boot/system/boot")
+    logger.info("- POST /boot/component/register")
+    logger.info("- GET /boot/components/list")
+    logger.info("- GET /boot/history/list")
+    logger.info("- GET /health")
+    
+    # Start HTTP server
+    uvicorn.run(app, host="0.0.0.0", port=8000)
