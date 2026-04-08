@@ -1,0 +1,25 @@
+# MedicalBlockNet.ps1
+$apiUrl = "http://localhost:8000"
+
+function Start-MedicalBlockNet {
+    # Launch API server
+    Start-Process python "medical_blocknet_api.py"
+    
+    # Register test shard
+    $testShard = @{
+        owner_id = "user_001"
+        btc_height = ((bitcoin-cli getblockchaininfo | ConvertFrom-Json).blocks)
+        data_hash = (Get-FileHash "medical_data.json").Hash
+    } | ConvertTo-Json
+    
+    Invoke-RestMethod -Uri "$apiUrl/register/shard" -Method POST -Body $testShard -ContentType "application/json"
+}
+
+function Find-MyShards($ownerId) {
+    # Query network for owner's shards
+    $shards = Invoke-RestMethod -Uri "$apiUrl/shard" -Method GET
+    $shards | Where-Object owner_id -eq $ownerId
+}
+
+# Auto-start network
+Start-MedicalBlockNet
