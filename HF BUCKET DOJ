@@ -1,0 +1,1 @@
+powershell -ExecutionPolicy ByPass -c "irm https://hf.co/cli/install.ps1 | iex"
