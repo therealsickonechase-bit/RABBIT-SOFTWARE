@@ -1,27 +1,28 @@
-import React, { useEffect, useState } from 'react'
-import { useSpectrumStore } from './lib/store'
+import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { SpectrumChart } from './components/SpectrumChart'
-import { LiveControl } from './components/LiveControl'
-import { FrequencyFilter } from './components/FrequencyFilter'
-import { SignalTable } from './components/SignalTable'
 import styles from './App.module.css'
+import { SensorDashboard } from './components/SensorDashboard'
+import { SensorRegistration } from './components/SensorRegistration'
+import { Auth } from './components/Auth'
 
 function App() {
-  const { liveReadings, frequencyFilter } = useSpectrumStore()
-  const [user, setUser] = useState<any>(null)
+  const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showRegistration, setShowRegistration] = useState(false)
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
       setLoading(false)
     })
-  }, [])
 
-  const filteredReadings = liveReadings.filter(
-    (r) => r.frequency_mhz >= frequencyFilter.min && r.frequency_mhz <= frequencyFilter.max
-  )
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setLoading(false)
+    })
+
+    return () => subscription?.unsubscribe()
+  }, [])
 
   if (loading) {
     return (
@@ -31,49 +32,34 @@ function App() {
     )
   }
 
-  if (!user) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.authPrompt}>
-          <h1>SDR Spectrum Analyzer</h1>
-          <p>Sign in to get started</p>
-        </div>
-      </div>
-    )
+  if (!session) {
+    return <Auth />
   }
 
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <div>
-            <h1>SDR Spectrum Analyzer</h1>
-            <p className={styles.subtitle}>Real-time RF signal analysis and visualization</p>
-          </div>
-          <div className={styles.userInfo}>
-            <span>{user.email}</span>
+          <h1>IoT Sensor Data Platform</h1>
+          <div className={styles.headerActions}>
+            <button
+              className={styles.primaryButton}
+              onClick={() => setShowRegistration(!showRegistration)}
+            >
+              {showRegistration ? 'Close' : 'Register Sensor'}
+            </button>
+            <button
+              className={styles.secondaryButton}
+              onClick={() => supabase.auth.signOut()}
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
 
-      <main className={styles.main}>
-        <LiveControl />
-        {liveReadings.length > 0 && (
-          <>
-            <SpectrumChart data={filteredReadings} />
-            <div className={styles.gridLayout}>
-              <FrequencyFilter />
-              <SignalTable />
-            </div>
-          </>
-        )}
-        {liveReadings.length === 0 && (
-          <div className={styles.placeholder}>
-            <h2>No Data Yet</h2>
-            <p>Start listening to begin collecting RF signal data</p>
-          </div>
-        )}
-      </main>
+      {showRegistration && <SensorRegistration onSuccess={() => setShowRegistration(false)} />}
+      <SensorDashboard />
     </div>
   )
 }
