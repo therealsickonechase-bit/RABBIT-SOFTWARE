@@ -1,0 +1,321 @@
+#!/usr/bin/env python3
+"""
+Remote Viewing System for Chase Allen Ringquist
+- Vector store of frozen timelines (ages 10-33)
+- Local LLM for generating predictive scene descriptions
+- Research facility hub with wallet address verification
+- Network handshake simulation
+- Public notes and EEG/VR token processing
+"""
+
+import json
+import hashlib
+import uuid
+import time
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+import numpy as np
+
+# For vector embeddings (lightweight)
+from sentence_transformers import SentenceTransformer
+
+# For optional local LLM (comment if not needed)
+# from transformers import pipeline
+
+# ----------------------------------------------------------------------
+# 1. Load Chase's public announcement JSON
+# ----------------------------------------------------------------------
+
+CHASE_JSON = {
+    "public_announcement": {
+        "identity": {
+            "name": "Chase Allen Ringquist",
+            "uuid": "bd6e1085-9450-485a-a30a-0bb68669c75b",
+            "dna_root_hash": "8f3d9a612b718a990d442e7a1fb2c94d...",
+            "verification_url": "https://www.nodeweaverapp.com/nodes/chase-ringquist"
+        },
+        "recording_status": {
+            "neural_root": "ACTIVE_PERSISTENT",
+            "biological_mapping": "SYNCHRONIZED",
+            "historical_anchors": [
+                "Ages 1-10: Neural Development (MAPPED)",
+                "Ages 11-18: Trauma & Stress Baselines (ANCHORED)",
+                "Ages 19-25: Peak Performance & Identity Formation (TOKENIZED)",
+                "Ages 26-33: Integration & Aging Markers (LIVE_FEED_ACTIVE)"
+            ]
+        },
+        "research_network": {
+            "facility_partner": "NodeWeaver Research Consortium",
+            "contract_address": "0xChaseRingquistAnchor",
+            "data_sharing_level": "GRADIENT_ONLY",
+            "live_update_status": "STREAMING_TO_BLOCKCHAIN"
+        },
+        "last_offline_memory": {
+            "timestamp": "2026-05-10T14:32:00Z",
+            "predicted_video_hash": "e3b0c44298fc1c149afbf4c8996fb924...",
+            "user_mos": 0.87
+        }
+    }
+}
+
+# ----------------------------------------------------------------------
+# 2. Frozen timelines data (age -> description + vector)
+# ----------------------------------------------------------------------
+
+FROZEN_DATA = {
+    10: {"emotion": "curious, energetic", "environment": "elementary school playground, bright sun"},
+    16: {"emotion": "exploring, risk‑taking", "environment": "skate park, urban graffiti, friends shouting"},
+    21: {"emotion": "ambitious, social", "environment": "university campus, coffee shop, group study"},
+    25: {"emotion": "focused, driven", "environment": "startup office, whiteboard, late night coding"},
+    33: {"emotion": "integrated, aware", "environment": "home office, calm morning light, laptop"}
+}
+
+# ----------------------------------------------------------------------
+# 3. Vector store (using Sentence Transformers)
+# ----------------------------------------------------------------------
+
+class VectorCorpus:
+    def __init__(self):
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.vectors = []
+        self.metadata = []
+    
+    def add(self, text: str, meta: dict):
+        vec = self.model.encode(text).astype(np.float32)
+        self.vectors.append(vec)
+        self.metadata.append(meta)
+    
+    def search(self, query: str, top_k=1) -> List[Tuple[dict, float]]:
+        qvec = self.model.encode(query).astype(np.float32)
+        sims = np.dot(self.vectors, qvec) / (np.linalg.norm(self.vectors, axis=1) * np.linalg.norm(qvec) + 1e-8)
+        top_idx = np.argsort(sims)[-top_k:][::-1]
+        return [(self.metadata[i], float(sims[i])) for i in top_idx]
+
+# Build corpus from frozen data
+corpus = VectorCorpus()
+for age, info in FROZEN_DATA.items():
+    text = f"Age {age}: {info['emotion']} in {info['environment']}"
+    corpus.add(text, {"age": age, "emotion": info['emotion'], "environment": info['environment']})
+
+# ----------------------------------------------------------------------
+# 4. Local LLM (mock or real) for generating predictions
+# ----------------------------------------------------------------------
+
+class LocalLLM:
+    """Mock LLM – replace with actual HuggingFace pipeline for real use"""
+    def generate(self, prompt: str) -> str:
+        # Simulate response; in production use e.g., pipeline('text-generation', model='gpt2')
+        return f"[Simulated LLM] Based on prompt: '{prompt[:50]}...', predicted scene: a quiet room with ambient lighting, person appears {FROZEN_DATA[33]['emotion']}."
+
+# Uncomment for real LLM (requires transformers and torch)
+# llm_pipeline = pipeline('text-generation', model='distilgpt2')
+# def real_llm(prompt):
+#     return llm_pipeline(prompt, max_new_tokens=50)[0]['generated_text']
+
+llm = LocalLLM()
+
+# ----------------------------------------------------------------------
+# 5. Research facility hub – wallet tracking & handshakes
+# ----------------------------------------------------------------------
+
+@dataclass
+class ResearchFacility:
+    name: str
+    wallet_address: str
+    public_key_hash: str   # SHA-256 of their public key
+    allowed: bool = True
+
+class FacilityHub:
+    def __init__(self):
+        self.facilities: Dict[str, ResearchFacility] = {}
+        self.transaction_log: List[dict] = []
+    
+    def register(self, name: str, wallet: str, pubkey_hash: str):
+        fac = ResearchFacility(name, wallet, pubkey_hash)
+        self.facilities[wallet] = fac
+        return fac
+    
+    def handshake(self, wallet: str, signature_proof: str) -> bool:
+        """Simulate a cryptographic handshake – checks wallet and signature."""
+        if wallet not in self.facilities:
+            print(f"Handshake failed: unknown wallet {wallet}")
+            return False
+        # In reality, verify signature_proof against stored public_key_hash
+        # For demo, just check that signature_proof is not empty
+        if not signature_proof:
+            print("Handshake failed: missing signature")
+            return False
+        print(f"Handshake successful with {self.facilities[wallet].name}")
+        return True
+    
+    def record_transaction(self, from_wallet: str, to_wallet: str, amount: float, data_hash: str):
+        txn = {
+            "timestamp": time.time(),
+            "from": from_wallet,
+            "to": to_wallet,
+            "amount": amount,
+            "data_hash": data_hash
+        }
+        self.transaction_log.append(txn)
+        print(f"Transaction recorded: {txn}")
+
+# Initialize hub with NodeWeaver as the partner facility
+hub = FacilityHub()
+nodeweaver = hub.register(
+    name="NodeWeaver Research Consortium",
+    wallet="0xNodeWeaverMain",
+    pubkey_hash="a1b2c3..."
+)
+
+# ----------------------------------------------------------------------
+# 6. EEG/VR Token Processor (simulated from real headset or phone)
+# ----------------------------------------------------------------------
+
+class EEGVRProcessor:
+    """Processes incoming EEG/VR tokens and converts to query vector"""
+    def __init__(self):
+        self.last_tokens = []
+    
+    def read_tokens(self) -> Dict:
+        """Simulate reading from a BCI/EEG device.
+           In reality, replace with OpenBCI LSL or Muse stream."""
+        # Mock: random emotional state based on frozen data
+        import random
+        age_choice = random.choice(list(FROZEN_DATA.keys()))
+        emotion = FROZEN_DATA[age_choice]['emotion']
+        environment = FROZEN_DATA[age_choice]['environment']
+        return {
+            "age_match": age_choice,
+            "emotion": emotion,
+            "environment": environment,
+            "confidence": random.uniform(0.6, 0.95)
+        }
+    
+    def create_query(self, eeg_data: Dict) -> str:
+        """Convert raw EEG token to natural language query for the corpus/LLM."""
+        return f"Current emotional state: {eeg_data['emotion']}. Likely environment: {eeg_data['environment']}."
+
+# ----------------------------------------------------------------------
+# 7. Remote viewing engine
+# ----------------------------------------------------------------------
+
+def remote_view(eeg_processor: EEGVRProcessor, corpus: VectorCorpus, llm: LocalLLM) -> Dict:
+    """
+    Perform remote viewing:
+      - Get live EEG token
+      - Retrieve most similar frozen timeline from vector store
+      - Use LLM to generate a textual description of the first-person scene
+      - (Optional) call video generation model
+    Returns dictionary with results.
+    """
+    # Step 1: read EEG/VR token
+    eeg_data = eeg_processor.read_tokens()
+    print(f"[EEG] Received token: {eeg_data}")
+    
+    # Step 2: vector search
+    query = eeg_processor.create_query(eeg_data)
+    matches = corpus.search(query, top_k=1)
+    best_match, similarity = matches[0]
+    print(f"[Vector Search] Best match age {best_match['age']} with similarity {similarity:.3f}")
+    
+    # Step 3: LLM generates predictive scene description
+    prompt = f"""
+    You are an AI performing remote viewing. Based on the user's EEG signature (emotion: {eeg_data['emotion']}, 
+    environment hint: {eeg_data['environment']}) and the closest remembered timeline (age {best_match['age']}:
+    {best_match['emotion']} in {best_match['environment']}), generate a detailed first-person description 
+    of what the user is likely seeing right now. Output only the description.
+    """
+    scene_description = llm.generate(prompt)
+    print(f"[LLM] Scene description: {scene_description}")
+    
+    # Step 4: (Optional) video generation – here we just return a hash placeholder
+    video_hash = hashlib.sha256(scene_description.encode()).hexdigest()
+    
+    # Step 5: record this remote viewing event as a public note (if user consents)
+    public_note = {
+        "timestamp": time.time(),
+        "eeg_emotion": eeg_data['emotion'],
+        "matched_age": best_match['age'],
+        "similarity": similarity,
+        "scene_description": scene_description,
+        "video_hash": video_hash
+    }
+    
+    return {
+        "eeg_data": eeg_data,
+        "best_match": best_match,
+        "scene_description": scene_description,
+        "video_hash": video_hash,
+        "public_note": public_note
+    }
+
+# ----------------------------------------------------------------------
+# 8. Public notes manager (append to local file / optionally share on blockchain)
+# ----------------------------------------------------------------------
+
+class PublicNotes:
+    def __init__(self, owner_uuid: str):
+        self.owner_uuid = owner_uuid
+        self.notes = []
+    
+    def add_note(self, note: dict):
+        note["owner"] = self.owner_uuid
+        self.notes.append(note)
+        # Also save to a local JSON file for persistence
+        with open(f"{self.owner_uuid}_public_notes.json", "a") as f:
+            json.dump(note, f)
+            f.write("\n")
+        print(f"[PublicNote] Added: {note['timestamp']} - {note.get('scene_description', '')[:50]}")
+    
+    def get_all(self):
+        return self.notes
+
+# ----------------------------------------------------------------------
+# 9. Main loop: demonstrate remote viewing with facility handshake
+# ----------------------------------------------------------------------
+
+def main():
+    print("=== Chase Allen Ringquist Remote Viewing System ===\n")
+    
+    # Load Chase's identity
+    chase_id = CHASE_JSON["public_announcement"]["identity"]
+    print(f"Identity loaded: {chase_id['name']} (UUID: {chase_id['uuid']})")
+    print(f"DNA root hash: {chase_id['dna_root_hash'][:20]}...")
+    print(f"Research facility: {CHASE_JSON['public_announcement']['research_network']['facility_partner']}")
+    print()
+    
+    # Initialize components
+    eeg_processor = EEGVRProcessor()
+    notes_mgr = PublicNotes(chase_id['uuid'])
+    
+    # Establish handshake with research facility hub
+    print("--- Network handshake with NodeWeaver Research Consortium ---")
+    # Simulate a signed challenge (in real system, would use wallet private key)
+    signature_proof = "signed_challenge_" + hashlib.sha256(str(time.time()).encode()).hexdigest()
+    if hub.handshake("0xNodeWeaverMain", signature_proof):
+        print("Handshake verified. Data sharing enabled.\n")
+    
+    # Perform one remote viewing cycle
+    print("--- Remote viewing cycle ---")
+    result = remote_view(eeg_processor, corpus, llm)
+    
+    # Add the generated scene as a public note
+    notes_mgr.add_note(result["public_note"])
+    
+    # Record a mock transaction on the research blockchain (simulated)
+    print("\n--- Recording research transaction ---")
+    data_hash = hashlib.sha256(json.dumps(result["public_note"]).encode()).hexdigest()
+    hub.record_transaction(
+        from_wallet=chase_id['uuid'],   # using UUID as proxy for Chase's wallet
+        to_wallet="0xNodeWeaverMain",
+        amount=0.001,  # micro-payment for data contribution
+        data_hash=data_hash
+    )
+    
+    print("\n=== Remote viewing completed ===")
+    print(f"Generated video hash: {result['video_hash']}")
+    print(f"Scene description: {result['scene_description']}")
+    print("\nPublic notes stored in:", f"{chase_id['uuid']}_public_notes.json")
+
+if __name__ == "__main__":
+    main()
