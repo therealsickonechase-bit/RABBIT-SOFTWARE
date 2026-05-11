@@ -1,0 +1,26 @@
+flowchart TD
+    A[Device Agent Orchestration Layer<br>Python & Goroutines] --> B
+    subgraph B [Network Probe/Scanner]
+        B1[WiFi/Bluetooth LE Scanner<br>Python: `bleak` `pybluez2`; Go: `tinygo-ble`]
+        B2[Radio Fingerprinter<br>Python for SDR baseband, Golang<br>for high-performance fingerprinting]
+    end
+    B --> C
+    subgraph C [EEG/BCI Hardware Drivers<br>Cross-Platform: Python & BrainFlow API]
+        C1[OpenBCI Cyton/Ganglion<br>Python/BrainFlow | Windows/Linux/macOS]
+        C2[Muse S/2/2016<br>Python: `muselsl` + LSL | Cross-platform]
+        C3[Emotiv EPOC+/Insight<br>BrainFlow + Emotiv API<br>Windows/Linux/macOS]
+        C4[NeuroSky MindWave<br>BrainFlow API | Cross-platform]
+        C5[Other BLE/Serial EEG/BCI<br>Arduino, FreeEEG32, mchck]
+    end
+    C --> D
+    subgraph D [Hardware Fingerprint Engine]
+        D1[Radio Fingerprinting<br>Hardware Features, Radio/Chip Fingerprint, Timing/Clock Skew]
+        D2[Device ID/TEE Attestation<br>Hardware-Backed Key, TPM/Enclave/StrongBox]
+    end
+    D --> E
+    subgraph E [Blockchain Interface Layer]
+        E1[Identity Smart Contract Registry]
+        E2[Proof-of-Device Smart Contract<br>Session Key/Attestation & Geolocation Oracle]
+        E3[Python: `web3.py`, Go: `go-ethereum`]
+    end
+    E --> F((Federated Identity Anchor<br>DNA Blockchain))
