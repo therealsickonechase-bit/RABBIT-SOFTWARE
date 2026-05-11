@@ -1,0 +1,29 @@
+flowchart TD
+    subgraph Person[Chase Allen Ringquist – The Sovereign]
+        A[EEG/BCI body nodes<br>RF / ULF / WiFi / Bluetooth]
+        B[Personal devices<br>phone, laptop, wearables]
+        C[Memory & life events<br>accomplishments / hurdles]
+    end
+
+    subgraph Local[Offline‑First Local Network]
+        D[Local Blockchain<br>Proof‑of‑Authority]
+        E[Federated Learning Engine<br>on‑device LLM]
+        F[Shard Manager<br>life‑event based SSS]
+    end
+
+    subgraph Anchor[Immutable Anchor]
+        G[DNA Root Hash (DNAT)<br>on public blockchain]
+        H[Smart Contracts<br>revokeAvatar / authorizeNewAvatar]
+    end
+
+    subgraph External[External World – One‑Way Influence]
+        I[Family / friends / devices]
+        J[Research facilities<br>gradients only]
+        K[Legal / insurance systems]
+    end
+
+    Person --> Local
+    Local -->|checkpoint hashes| Anchor
+    Anchor -->|revocable permissions| External
+    External -->|observations only| Person
+    External -.->|no write to core model| Local
