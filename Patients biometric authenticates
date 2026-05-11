@@ -1,0 +1,19 @@
+flowchart TB
+    subgraph Patient[Patient's Controlled Sphere]
+        A[Wearables & IoT] --> B[Personal Avatar]
+        B -- Biometric Authenticates --> C[SSI Wallet & Private Key]
+    end
+
+    subgraph Blockchain[Hybrid Blockchain Network]
+        D[Private Chain for Personal Health Data]
+        E[Consortium Chain for Emergency/Research]
+    end
+
+    subgraph Storage[Decentralized Storage (e.g., IPFS)]
+        F[Encrypted Medical Blobs]
+    end
+
+    Patient -- On-chain Hash References for Immutability[reference:4]--> Blockchain
+    Patient -- Encrypted Data Storage[reference:5]--> Storage
+    Storage -- Stores Data Pointers & Access Logs via Smart Contract[reference:6]--> Blockchain
+    Blockchain -- Verifiable Proof of Data Integrity[reference:7]--> Involved[Involved Parties]
