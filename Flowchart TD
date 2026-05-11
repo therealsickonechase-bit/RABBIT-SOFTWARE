@@ -1,0 +1,18 @@
+flowchart TD
+    A[Kivy GUI Layer<br>cross‑platform UI] --> B
+    subgraph B [Device Fingerprinting Layer]
+        B1[BLE Scanner<br>bleak / pybluez]
+        B2[Wi‑Fi Scanner<br>scapy / wireless]
+        B3[Radio Fingerprinter<br>clock skew / RSSI]
+    end
+    B --> C
+    subgraph C [Blockchain Identity Layer]
+        C1[web3.py Smart Contract<br>Device Registry]
+        C2[Polygon Device NFT]
+        C3[Handshake / Attestation]
+    end
+    subgraph D [Local AI Layer]
+        D1[Ollama / Gemma 4 /<br>Foundry Local]
+        D2[Prompt Generator]
+        D3[Remote‑View Renderer]
+    end
