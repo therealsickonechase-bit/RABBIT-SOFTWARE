@@ -1,0 +1,19 @@
+flowchart TD
+    A[RF Fingerprint<br>Bluetooth/Wi-Fi/Cellular] --> B(Hash & Tokenize)
+    C[DNA Fingerprint<br>Biometric Hash] --> D(Hash & Tokenize)
+    
+    subgraph E [Offline Local Node]
+        B --> F[Local Avatar AI]
+        D --> F
+        F --> G[Generate "Self" Signature]
+        G --> H[Local Blockchain Ledger]
+    end
+
+    H --> I((Self-Anchoring<br>Identity Proof))
+    I --> J[Selective Sync to<br>Public Blockchain Anchor]
+
+    style A fill:#e1f5fe,stroke:#01579b,stroke-width:1px
+    style C fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
+    style E fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style H fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style I fill:#ffccbc,stroke:#bf360c,stroke-width:2px
