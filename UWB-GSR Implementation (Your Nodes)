@@ -1,0 +1,16 @@
+**WRIST_L Transmit** (GSR electrode → UWB):
+1. GSR voltage → Δσ = 0.9 S/m (stress)
+2. Skin dielectric → ε_r 45→48 (+6.7%)
+3. UWB 2ns pulse → reflection Γ shifts φ=+0.06 rad
+4. 499.2 Mbps raw → 9.6 kbps GSR stream
+
+**HEAD_01 Receive** (matched filter):
+```python
+# UWB pulse compression (50 dB gain)
+pulse_template = uwb_impulse(2e-9)  # 2ns Gaussian
+iq_rx = wrist_l.rx_uwb(500e6, duration=1e-3)
+timing = np.correlate(np.abs(iq_rx), pulse_template, 'valid')
+
+# GSR extraction from phase rotation
+phase_gsr = np.angle(iq_rx[timing.argmax():timing.argmax()+100])
+delta_sigma = (phase_gsr.mean() - baseline_phase) / 0.06  # Stress proxy
