@@ -12,3 +12,8 @@ if blockgpt_anomaly_score(contractor_pr) > 0.6:
     print("❌ BACKDOOR DETECTED - REJECT")
 else:
     print("✅ DEPLOYABLE - MERGE")
+
+Protection:
+✅ Code cannot access CRITICAL tier data (age 22 OD)
+✅ Every commit → threshold signature required
+✅ BlockGPT catches malicious LLM-generated code
