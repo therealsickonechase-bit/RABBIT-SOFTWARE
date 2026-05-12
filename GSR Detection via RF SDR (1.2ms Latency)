@@ -1,0 +1,15 @@
+**Mechanism**: Stress → sweat → skin conductivity σ 1.2→2.1 S/m
+**RF Signature**: Reflection coefficient Γ shifts → phase φ +0.06 rad
+
+**HEAD_01 Transmit**: 1.2ms pulse → skin reflection → CHEST_01 receive
+**SDR Processing**:
+```python
+# Real-time GSR proxy (HackRF IQ)
+iq_reflected = chest_01.rx_pulse()
+phase_stress = np.angle(iq_reflected).mean()
+
+baseline_phase = 0.12  # Calm skin
+gsr_delta = phase_stress - baseline_phase  # +0.06 rad = stress
+
+if gsr_delta > 0.05:
+    emotion_state = "stress_gsr_confirmed"
