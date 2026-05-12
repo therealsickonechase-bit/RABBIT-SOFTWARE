@@ -2,4 +2,4 @@ Raw EEG (Tier 1) → NO ESCAPE POSSIBLE
   ↓ (hash computation only)
 SHA256 fingerprints (Tier 2) → S3 endpoint ONLY  
   ↓ (aggregate queries)
-Metadata (Tier 3) → Controlled internet
+Metadata (Tier 3) → Controlled internet 
